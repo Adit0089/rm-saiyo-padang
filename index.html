@@ -1651,48 +1651,20 @@ async function mulaiLoginGoogle(){
   sembunyikanErrorAuth();
   let tombol = document.getElementById('btnGoogleLogin');
   let labelAsli = tombol.innerHTML;
-
   try{
-    if(!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.indexOf('GANTI_DENGAN') === 0){
-      tampilkanErrorAuth('Login Google belum disetel (isi GOOGLE_CLIENT_ID di index.html, dan aktifkan provider Google di dashboard Supabase).');
-      return;
-    }
-    if(typeof google === 'undefined' || !google.accounts){
-      tampilkanErrorAuth('Gagal memuat layanan Google. Cek koneksi internet kamu, lalu coba lagi.');
-      return;
-    }
-
     tombol.disabled = true;
     tombol.innerHTML = 'Menghubungkan ke Google...';
-
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: async (respon) => {
-        try{
-          if(!respon || !respon.credential) throw new Error('Login Google dibatalkan.');
-          let { error } = await sb.auth.signInWithIdToken({ provider:'google', token: respon.credential });
-          if(error) throw new Error(error.message);
-          let profil = await getMyProfile();
-          tampilkanApp(profil.nama, profil.username, profil.role, profil.foto);
-        }catch(err){
-          tampilkanErrorAuth(err.message);
-        }finally{
-          tombol.disabled = false;
-          tombol.innerHTML = labelAsli;
-        }
-      }
+    let { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + window.location.pathname }
     });
-    google.accounts.id.prompt((notif) => {
-      if(notif.isNotDisplayed() || notif.isSkippedMoment()){
-        tombol.disabled = false;
-        tombol.innerHTML = labelAsli;
-        tampilkanErrorAuth('Popup Google gak muncul. Izinkan popup/third-party cookies di browser kamu lalu coba lagi.');
-      }
-    });
+    if(error) throw new Error(error.message);
+    // Kalau berhasil, browser otomatis dialihkan ke halaman login Google -> balik lagi ke sini.
+    // Kalau gagal (error di atas), baru tombolnya dibalikin normal di catch/finally.
   }catch(err){
     tombol.disabled = false;
     tombol.innerHTML = labelAsli;
-    tampilkanErrorAuth('Gagal memuat Google Sign-In: ' + err.message);
+    tampilkanErrorAuth('Gagal membuka login Google: ' + err.message);
   }
 }
 
