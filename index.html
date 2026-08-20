@@ -240,24 +240,33 @@ body{
 .status-badge.habis{ background:#fde2e2; color:#b3261e; }
 
 /* ===== Kasir: grid produk ===== */
-.produk-grid-kasir{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:14px; }
+.produk-grid-kasir{ display:grid; grid-template-columns:repeat(auto-fill, minmax(112px,1fr)); gap:8px; }
 .produk-card2{
-    background:#fff; border:1px solid #eee; border-radius:14px; padding:14px;
+    background:#fff; border:1px solid #eee; border-radius:10px; padding:8px;
     cursor:pointer; transition: transform .15s, box-shadow .15s; position:relative;
 }
 .produk-card2:hover{ transform: translateY(-3px); box-shadow: 0 10px 22px rgba(102,126,234,0.18); border-color:#c8c3f2; }
 .produk-card2.habis{ opacity:.45; cursor:not-allowed; }
 .produk-card2.habis:hover{ transform:none; box-shadow:none; }
 .avatar-produk{
-    width:42px; height:42px; border-radius:10px; display:flex; align-items:center;
-    justify-content:center; color:#fff; font-weight:800; font-size:14px; margin-bottom:10px;
+    width:32px; height:32px; border-radius:8px; display:flex; align-items:center;
+    justify-content:center; color:#fff; font-weight:800; font-size:12px; margin-bottom:6px;
 }
-.stok-pill{ position:absolute; top:12px; right:12px; background:#f0edf9; color:#5b4b8a; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; }
-.produk-thumb{ width:42px; height:42px; border-radius:10px; object-fit:cover; margin-bottom:10px; display:block; }
-.produk-card2 .nama{ font-weight:700; font-size:13.5px; color:#2c2260; margin-bottom:2px; line-height:1.3; min-height:34px; }
-.produk-card2 .sub{ font-size:10.5px; color:#9a90c0; margin-bottom:6px; }
-.produk-card2 .harga{ font-weight:800; color:#4f46e5; font-size:14px; }
+.stok-pill{ position:absolute; top:6px; right:6px; background:#f0edf9; color:#5b4b8a; font-size:9px; font-weight:700; padding:2px 6px; border-radius:20px; }
+.produk-thumb{ width:32px; height:32px; border-radius:8px; object-fit:cover; margin-bottom:6px; display:block; }
+.produk-card2 .nama{ font-weight:700; font-size:12px; color:#2c2260; margin-bottom:1px; line-height:1.25; min-height:auto; }
+.produk-card2 .sub{ font-size:9.5px; color:#9a90c0; margin-bottom:3px; }
+.produk-card2 .harga{ font-weight:800; color:#4f46e5; font-size:12.5px; }
 .produk-kosong{ grid-column:1/-1; text-align:center; color:#999; padding:30px; }
+/* ===== Filter kategori (chip) di halaman Kasir ===== */
+.kategori-filter{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-bottom:12px; scrollbar-width:thin; }
+.kategori-chip{
+    flex:none; background:#f0edf9; color:#5b4b8a; border:1px solid transparent;
+    font-size:12px; font-weight:700; padding:6px 14px; border-radius:20px; cursor:pointer;
+    white-space:nowrap; transition:.15s;
+}
+.kategori-chip:hover{ background:#e4defb; }
+.kategori-chip.active{ background:#4f46e5; color:#fff; }
 
 /* ===== Kasir: keranjang ===== */
 .cart-panel{ background:#fff; border-radius:16px; padding:20px; box-shadow:0 4px 14px rgba(30,10,60,0.06); display:flex; flex-direction:column; height:100%; }
@@ -639,6 +648,7 @@ body{
                 <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                 <input type="text" class="form-control" id="cariProduk" placeholder="Cari produk (Nama / SKU)..." oninput="renderProdukGrid()">
               </div>
+              <div class="kategori-filter" id="kategoriFilter"></div>
               <div class="produk-grid-kasir" id="produkGrid"></div>
             </div>
           </div>
@@ -1994,12 +2004,33 @@ function renderStokTable(){
   });
 }
 
+let kategoriAktif = 'Semua';
+
+function renderKategoriFilter(){
+  let container = document.getElementById("kategoriFilter");
+  if(!container) return;
+  let daftarKategori = ['Semua', ...new Set(stok.map(s => s.kategori).filter(k => k && k.trim() !== ''))];
+  if(!daftarKategori.includes(kategoriAktif)) kategoriAktif = 'Semua';
+  container.innerHTML = daftarKategori.map(k =>
+    `<button type="button" class="kategori-chip${k===kategoriAktif ? ' active' : ''}" onclick="pilihKategoriFilter('${k.replace(/'/g,"\\'")}')">${k}</button>`
+  ).join('');
+}
+
+function pilihKategoriFilter(kategori){
+  kategoriAktif = kategori;
+  renderKategoriFilter();
+  renderProdukGrid();
+}
+
 function renderProdukGrid(){
   let grid = document.getElementById("produkGrid");
   let cari = (document.getElementById("cariProduk").value || "").toLowerCase().trim();
   grid.innerHTML = "";
 
+  renderKategoriFilter();
+
   let daftar = stok.filter(s => s.nama.toLowerCase().includes(cari));
+  if(kategoriAktif !== 'Semua'){ daftar = daftar.filter(s => s.kategori === kategoriAktif); }
 
   if(daftar.length === 0){
     grid.innerHTML = '<div class="produk-kosong">'+(stok.length===0 ? 'Belum ada produk. Tambahkan dulu di menu "Produk & Stok".' : "Produk tidak ditemukan.")+'</div>';
