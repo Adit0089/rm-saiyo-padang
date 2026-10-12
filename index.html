@@ -1014,6 +1014,28 @@ async function getMyProfile(){
   return data;
 }
 
+/* Akun baru (mis. login Google pertama kali) bisa belum punya baris di tabel profiles.
+   Kalau belum ada, dibuatkan otomatis sebagai 'pembeli'. */
+async function pastikanProfil(){
+  let profil = await getMyProfile();
+  if(profil) return profil;
+  let { data: { user } } = await sb.auth.getUser();
+  if(!user) return null;
+  let meta = user.user_metadata || {};
+  let nama = (meta.full_name || meta.name || (user.email||'').split('@')[0] || 'Pengguna').trim();
+  let dasar = ((user.email||'user').split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g,'')) || 'user';
+  for(let i=0;i<5;i++){
+    let username = i===0 ? dasar : dasar + Math.floor(1000 + Math.random()*9000);
+    let { error } = await sb.from('profiles').insert({
+      id: user.id, nama, username, role: 'pembeli', foto: meta.avatar_url || meta.picture || null
+    });
+    if(!error) return await getMyProfile();
+    if(/duplicate|unique/i.test(error.message) && /pkey|id/i.test(error.message)) return await getMyProfile();
+    if(!/duplicate|unique/i.test(error.message)) throw new Error('Gagal membuat profil akun: ' + error.message);
+  }
+  throw new Error('Gagal membuat profil akun (username bentrok). Coba lagi.');
+}
+
 /* ================= LAPISAN KOMPATIBILITAS apiGet / apiPost =================
    Semua kode di bawah (sisa file ini) masih manggil apiGet('produk') /
    apiPost('auth', {...}) persis kayak sebelumnya. Di sinilah panggilan itu
@@ -1024,7 +1046,7 @@ async function apiGet(resource){
   if(resource === 'auth'){
     let { data: { session } } = await sb.auth.getSession();
     if(!session) return { loggedIn:false };
-    let profil = await getMyProfile();
+    let profil = await pastikanProfil();
     if(!profil) return { loggedIn:false };
     return { loggedIn:true, nama:profil.nama, username:profil.username, role:profil.role, foto:profil.foto };
   }
@@ -1560,7 +1582,8 @@ async function mulaiLoginGoogle(){
           if(!respon || !respon.credential) throw new Error('Login Google dibatalkan.');
           let { error } = await sb.auth.signInWithIdToken({ provider:'google', token: respon.credential });
           if(error) throw new Error(error.message);
-          let profil = await getMyProfile();
+          let profil = await pastikanProfil();
+          if(!profil) throw new Error('Profil akun tidak ditemukan. Hubungi admin.');
           tampilkanApp(profil.nama, profil.username, profil.role, profil.foto);
         }catch(err){
           tampilkanErrorAuth(err.message);
